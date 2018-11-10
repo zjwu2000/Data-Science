@@ -1,255 +1,461 @@
 # -*- coding: utf-8 -*-
 """
-Created on Nov 24 07:10:06 2017
+Created on Dec 16 2017
 
 @author: Joe
 
 revision history
-v1:
-Accuracy : 83.225%
-Cross-Validation Score : 80.948%
 
-v2: normalize
-Accuracy : 82.736%
-Cross-Validation Score : 80.784%
+--(v3  score: 0.77778)
+-- two features
+                        Model  Score
+2         Logistic Regression  83.22
+0     Support Vector Machines  83.06
+1                         KNN  83.06
+3               Random Forest  83.06
+4                 Naive Bayes  83.06
+6  Stochastic Gradient Decent  83.06
+7                  Linear SVC  83.06
+8               Decision Tree  83.06
+5                  Perceptron  40.07
 
-v3: added LoanAmountPerIncome
-Accuracy : 83.225%
-Cross-Validation Score : 79.805%
+--(v4 score: 0.77083)
+--added 'TotalIncome_log', 'LoanAmount_log' 
+                        Model   Score
+3               Random Forest  100.00
+8               Decision Tree  100.00
+1                         KNN   86.48
+2         Logistic Regression   83.22
+0     Support Vector Machines   83.06
+7                  Linear SVC   83.06
+4                 Naive Bayes   82.74
+6  Stochastic Gradient Decent   73.62
+5                  Perceptron   64.33
 
-V4:
-Accuracy : 84.853%
-Cross-Validation Score : 82.251%
-"""
+-- (v5 score: 0.76389)
+--added 'Loan_Amount_Term', 'Dependents' 
+                       Model  Score
+3               Random Forest  84.20
+8               Decision Tree  84.20
+2         Logistic Regression  83.22
+0     Support Vector Machines  83.06
+4                 Naive Bayes  83.06
+7                  Linear SVC  83.06
+6  Stochastic Gradient Decent  80.62
+1                         KNN  53.58
+5                  Perceptron  31.60
+
+
+-- (v6   score:0.722222)
+--added 'LoanAmount_perIncome', 'Dependents' 
+                       Model  Score
+3               Random Forest  99.19
+8               Decision Tree  99.19
+1                         KNN  85.18
+4                 Naive Bayes  83.55
+2         Logistic Regression  83.22
+0     Support Vector Machines  83.06
+7                  Linear SVC  83.06
+5                  Perceptron  81.76
+6  Stochastic Gradient Decent  55.21
+
+-- (v7 score: 0.79167)
+--added all                                
+                       Model   Score
+3               Random Forest  100.00
+8               Decision Tree  100.00
+1                         KNN   85.67
+4                 Naive Bayes   83.39
+2         Logistic Regression   83.22
+0     Support Vector Machines   83.06
+7                  Linear SVC   83.06
+5                  Perceptron   76.22
+6  Stochastic Gradient Decent   72.80
+
+--LoanAmount use different way (mean of group grouped by Gender, Married, Self_Employed)  to fill NaN  (v8 0.77778 down)
+                        Model   Score
+3               Random Forest  100.00
+8               Decision Tree  100.00
+1                         KNN   84.20
+4                 Naive Bayes   83.39
+0     Support Vector Machines   83.06
+2         Logistic Regression   83.06
+7                  Linear SVC   83.06
+6  Stochastic Gradient Decent   82.57
+5                  Perceptron   77.52
+
+-- (v9 score: 0.798611111111111)
+use GridSearchCV   
+----------------------------------------------------
+
+Rank:  175 out of 3596
+
+""" 
+              
 
 import pandas as pd
 import numpy as np
 import sys, os
+from sklearn import preprocessing
+
+# visualization
+import seaborn as sns
+import matplotlib.pyplot as plt
+#%matplotlib inline
+
+# machine learning
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC, LinearSVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import Perceptron
+from sklearn.linear_model import SGDClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+from sklearn.grid_search import GridSearchCV
 
 
 pd.set_option('display.max_rows', 1000)
 
-df = pd.read_csv(r"C:\Data Science Projects\Load Prediction\loan_train_data.csv", sep=',', header=0, decimal='.')
+#load the data
+
+df_train = pd.read_csv(r"C:\Data Science Projects\Load Prediction\loan_train_data.csv", sep=',', header=0, decimal='.')
 df_test = pd.read_csv(r"C:\Data Science Projects\Load Prediction\loan_test_data.csv", sep=',', header=0, decimal='.')
+df_full = [df_train, df_test]
+
+print(df_train.head(10))
+print(df_train.describe())
+print(df_train.info())
+print(df_train.columns)
 
 
-print(df.head(10))
-
-df.describe()
-
-#Create a new function:
+# count NaN rows
 def num_missing(x):
   return sum(x.isnull())
 
 #Applying per column:
-print("(train)Missing values per column:")
-print(df.apply(num_missing, axis=0)) #axis=0 defines that function is to be applied on each column
-print("(test)Missing values per column:")
-print(df_test.apply(num_missing, axis=0)) #axis=0 defines that function is to be applied on each column
+print("Missing values per column:")
 
-#Applying per row:
-#print("\nMissing values per row:")
-#print(df.apply(num_missing, axis=1).head()) #axis=1 defines that function is to be applied on each row
+for dataset in df_full:
+    print(dataset.apply(num_missing, axis=0)) #axis=0 defines that function is to be applied on each column
 
 
+# 'Married': set to 'Yes' for NaN value (use majarity value)
+for dataset in df_full:
+    dataset['Married'].fillna('Yes',inplace=True)
 
-#Since ~86% values are “No”, it is safe to impute the missing values as “No” 
-df['Self_Employed'].fillna('No',inplace=True)
-df_test['Self_Employed'].fillna('No',inplace=True)
 
+# 'Gender': set to 'Male' for NaN value (use majarity value)
+for dataset in df_full:
+    dataset['Gender'].fillna('Male',inplace=True)
 
-## Gender
-#df['Gender'].fillna('Male',inplace=True)
-#df_test['Gender'].fillna('Male',inplace=True)
- 
 #df['Gender'] =   df[ApplicantIncome].map(lambda x: "Female" if < 4643 lese "Male")
-df['Gender'][df['Gender'].isnull() & df['ApplicantIncome'] < 4643] = 'Female'
-df['Gender'][df['Gender'].isnull() & df['ApplicantIncome'] >= 4643] = 'Male'
+#df['Gender'][df['Gender'].isnull() & df['ApplicantIncome'] < 4643] = 'Female'
+#df['Gender'][df['Gender'].isnull() & df['ApplicantIncome'] >= 4643] = 'Male'
+#df_test['Gender'][df_test['Gender'].isnull() & df_test['ApplicantIncome'] < 4643] = 'Female'
+#df_test['Gender'][df_test['Gender'].isnull() & df_test['ApplicantIncome'] >= 4643] = 'Male'
 
-df_test['Gender'][df_test['Gender'].isnull() & df_test['ApplicantIncome'] < 4643] = 'Female'
-df_test['Gender'][df_test['Gender'].isnull() & df_test['ApplicantIncome'] >= 4643] = 'Male'
 
-## credit history
-#df['Credit_History'].fillna('1',inplace=True)#
-#df_test['Credit_History'].fillna('1',inplace=True)
+# 'Dependents':set to 0 for NaN value (use majarity value)
+for dataset in df_full:
+    dataset['Dependents'].fillna('0',inplace=True) 
 
-mask = (df['Credit_History'].isnull()) & (df['Loan_Status'] == 'N')
-df.ix[mask, 'Credit_History'] = 0.0
+# repalce string to number
+for dataset in df_full:
+    dataset['Dependents'].replace(['0','1','2', '3+'], [0,1,2,3], inplace=True)    
+    
+# 'Self_Employed':
+#Since ~86% values are “No”, it is safe to impute the missing values as “No” 
+for dataset in df_full:
+    dataset['Self_Employed'].fillna('No',inplace=True)
 
-mask = (df['Credit_History'].isnull()) & (df['Loan_Status'] == 'Y')
-df.ix[mask, 'Credit_History'] = 1.0
+# add feature 'TotalIncome'
+for dataset in df_full:
+    dataset['TotalIncome'] = dataset['ApplicantIncome'] + dataset['CoapplicantIncome']
+    
+ 
+# fill NaN 'loanAmount'
+#for dataset in df_full:
+#    dataset['LoanAmount'].fillna(dataset['TotalIncome'] *(dataset['LoanAmount'].median()/dataset['TotalIncome'].median()), inplace=True)
+for dataset in df_full:
+    impute_grps = dataset.pivot_table(values=["LoanAmount"], index=["Gender","Married","Self_Employed"], aggfunc=np.mean)
 
-#df['Credit_History'][df['Credit_History'].isnull() & df['Loan_Status'] == 'N'] = 0.0
-#df['Credit_History'][df['Credit_History'].isnull() & df['Loan_Status'] == 'Y'] = 1.0
+
+    #iterate only through rows with missing LoanAmount
+    for i,row in dataset.loc[dataset['LoanAmount'].isnull(),:].iterrows():
+      ind = tuple([row['Gender'],row['Married'],row['Self_Employed']])
+      dataset.loc[i,'LoanAmount'] = impute_grps.loc[ind].values[0]
+
+# fill Nan 'Loan_Amount_Term'
+for dataset in df_full:
+    dataset['Loan_Amount_Term'].fillna(360.0, inplace=True) 
+    
+   
+# add feature LoanAmount/TotalIncome
+for dataset in df_full:
+    dataset['Ratio_Income_vs_LoanAmount'] = dataset['TotalIncome']/dataset['LoanAmount']
+
+  
+
+#sys.exit()  
+  
+#add feature 'family_size'
+for dataset in df_full:
+    dataset['family_size'] = 0
+    dataset.loc[dataset['Married'] == 'No', ['family_size']] = 1
+    dataset.loc[dataset['Married'] == 'Yes', ['family_size']] = 2
+    dataset['family_size'] =  dataset['family_size'] + dataset['Dependents']
+    
+# add feature 'Income_Person'
+for dataset in df_full:
+    dataset['Income_Person'] = dataset['TotalIncome']/dataset['family_size']
+    
+
+#sys.exit()    
+
+# credit history
+mask = (df_train['Credit_History'].isnull()) & (df_train['Loan_Status'] == 'N')
+df_train.loc[mask, 'Credit_History'] = 0.0
+    
+mask = (df_train['Credit_History'].isnull()) & (df_train['Loan_Status'] == 'Y')
+df_train.loc[mask, 'Credit_History'] = 1.0
+
 
 df_test['Credit_History'].fillna('1',inplace=True)
 
 
-
-df['Married'].fillna('Yes',inplace=True)
-df_test['Married'].fillna('Yes',inplace=True)
-
-
-df['Dependents'].fillna('0',inplace=True)
-df_test['Dependents'].fillna('0',inplace=True)
-
-# fill NaN loanAmount
-#df['LoanAmount'].fillna(df['LoanAmount'].mean(), inplace=True)
-
-
-table = df.pivot_table(values='LoanAmount', index='Self_Employed' ,columns='Education', aggfunc=np.median)
-# Define function to return value of this pivot_table
-def fage(x):
- return table.loc[x['Self_Employed'],x['Education']]
-# Replace missing values
-df['LoanAmount'].fillna(df[df['LoanAmount'].isnull()].apply(fage, axis=1), inplace=True)
-df_test['LoanAmount'].fillna(df_test[df_test['LoanAmount'].isnull()].apply(fage, axis=1), inplace=True)
-
-
-#df.dropna(subset=['Loan_Amount_Term'], axis=0, inplace=True)
-df['Loan_Amount_Term'].fillna(df[df['Loan_Amount_Term'].isnull()].apply(fage, axis=1), inplace=True)
-df_test['Loan_Amount_Term'].fillna(df_test[df_test['Loan_Amount_Term'].isnull()].apply(fage, axis=1), inplace=True)
-
-
-df.apply(lambda x: sum(x.isnull()),axis=0) 
-
 # use log transformation to nullify their effect:
-df['LoanAmount_log'] = np.log(df['LoanAmount'])
-df_test['LoanAmount_log'] = np.log(df_test['LoanAmount'])
-#df['LoanAmount_log'].hist(bins=20)
+for dataset in df_full:
+    dataset['LoanAmount_log'] = np.log(dataset['LoanAmount'])
+    dataset['TotalIncome_log'] = np.log(dataset['TotalIncome'])
 
-# add now column 'TotalIncome'
-df['TotalIncome'] = df['ApplicantIncome'] + df['CoapplicantIncome']
-df['TotalIncome_log'] = np.log(df['TotalIncome'])
-#df['LoanAmount_log'].hist(bins=20) 
-df_test['TotalIncome'] = df_test['ApplicantIncome'] + df_test['CoapplicantIncome']
-df_test['TotalIncome_log'] = np.log(df_test['TotalIncome'])
-
-df['LoanAmountPerIncome'] = df['LoanAmount']/df['TotalIncome']
-df_test['LoanAmountPerIncome'] = df_test['LoanAmount']/df_test['TotalIncome']
-
-
-#Applying per column:
-print("Missing values per column (after fill in NaN):")
-print(df.apply(num_missing, axis=0)) #axis=0 defines that function is to be applied on each column
-print(df_test.apply(num_missing, axis=0)) #axis=0 defines that function is to be applied on each column
+# display NaN count to make sure there is no NaN values
+for dataset in df_full:
+    print(dataset.apply(lambda x: sum(x.isnull()),axis=0) )
 
 #sys.exit()
 
+# encoder categoricak features
 from sklearn.preprocessing import LabelEncoder
 var_mod = ['Gender','Married','Dependents','Education','Self_Employed','Property_Area','Loan_Status']
 le = LabelEncoder()
 for i in var_mod:
-    df[i] = le.fit_transform(df[i])
+    df_train[i] = le.fit_transform(df_train[i])
     if ( i != 'Loan_Status'):
         df_test[i] = le.fit_transform(df_test[i])
-df.dtypes 
+        
+print(df_train.dtypes)
 
 
+for dataset in df_full:
+    print("----  Check NaN --------------")
+    print(dataset.apply(num_missing, axis=0))
 
-#Import models from scikit learn module:
-from sklearn.linear_model import LogisticRegression
-from sklearn.cross_validation import KFold   #For K-fold cross validation
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier, export_graphviz
-from sklearn import metrics
-from sklearn import preprocessing
-from sklearn.preprocessing import Imputer
-
-#Generic function for making a classification model and accessing performance:
-def classification_model(model, data, predictors, outcome):
-  #Fit the model:
-  model.fit(data[predictors],data[outcome])
-  
-  #Make predictions on training set:
-  predictions = model.predict(data[predictors])
-  
-  #Print accuracy
-  accuracy = metrics.accuracy_score(predictions,data[outcome])
-  print("Accuracy : %s" % "{0:.3%}".format(accuracy))
-
-  #Perform k-fold cross-validation with 5 folds
-  kf = KFold(data.shape[0], n_folds=5)
-  error = []
-  for train, test in kf:
-    # Filter training data
-    train_predictors = (data[predictors].iloc[train,:])
-    
-    # The target we're using to train the algorithm.
-    train_target = data[outcome].iloc[train]
-    
-    # Training the algorithm using the predictors and target.
-    model.fit(train_predictors, train_target)
-    
-    #Record error from each cross-validation run
-    error.append(model.score(data[predictors].iloc[test,:], data[outcome].iloc[test]))
- 
-  print("Cross-Validation Score : %s" % "{0:.3%}".format(np.mean(error)))
-
-  #Fit the model again so that it can be refered outside the function:
-  model.fit(data[predictors],data[outcome]) 
-  
-
-df = df.drop(labels=['Loan_ID'], axis=1) 
-
-df_test_Loan_ID =  df_test.loc[:, ['Loan_ID']]
-df_test = df_test.drop(labels=['Loan_ID'], axis=1) 
-
-outcome_var = 'Loan_Status'
+#sys.exit()
 
 #normalize numericalcontinuous feature
 
+from sklearn.preprocessing import Imputer
+
 cols_to_normalize = [\
-        'Loan_Amount_Term'\
-       ,'LoanAmountPerIncome'\
-       ,'TotalIncome_log'\
-       ,'LoanAmount_log'\
+         'Loan_Amount_Term'\
+       , 'ApplicantIncome'\
+       , 'CoapplicantIncome'\
+       , 'TotalIncome'\
+       , 'Income_Person'\
+       , 'LoanAmount'\
+       , 'Ratio_Income_vs_LoanAmount'\
+       , 'LoanAmount_log'\
+       , 'TotalIncome_log'\
+
 ]
 
-T = preprocessing.StandardScaler().fit(df.loc[:, cols_to_normalize])
-df.loc[:, cols_to_normalize] = T.transform(df.loc[:,cols_to_normalize])
+T = preprocessing.StandardScaler().fit(df_train.loc[:, cols_to_normalize])
+df_train.loc[:, cols_to_normalize] = T.transform(df_train.loc[:,cols_to_normalize])
 df_test.loc[:, cols_to_normalize] = T.transform(df_test.loc[:,cols_to_normalize])
 
-
-#model = LogisticRegression()
-#predictor_var = ['Credit_History']
-#classification_model(model, df, predictor_var, outcome_var)
-
-##We can try different combination of variables:
-#predictor_var = ['Credit_History','Education','Married','Self_Employed','Property_Area']
-#classification_model(model, df, predictor_var, outcome_var)
+#sys.exit()
 
 
-model = RandomForestClassifier(n_estimators=100, min_samples_split=25, max_depth=7, max_features='auto')
-predictor_var = [\
-                  'Credit_History'\
-                 ,'LoanAmountPerIncome'\
-                 ,'TotalIncome_log'\
-                 ,'LoanAmount_log'\
-                 ,'Loan_Amount_Term'\
-                 ,'Property_Area'\
-#                 ,'Married'\
-#                 ,'Education'\
-#                 ,'Dependents'\
-                  ,'Gender'\
-#                 ,'Self_Employed'\
-                 ]
-classification_model(model, df,predictor_var,outcome_var)
+# classifier comparison
 
-#Create a series with feature importances:
-featimp = pd.Series(model.feature_importances_, index=predictor_var).sort_values(ascending=False)
-print(featimp)
-
- 
-
-model.predict(df_test[predictor_var])
-
-predict_Loan_Status = pd.DataFrame(model.predict(df_test[predictor_var]), columns=['Loan_Status'])
-
-predict_result = pd.concat([df_test_Loan_ID['Loan_ID'], predict_Loan_Status], axis = 1)
+log_cols = ["Classifier", "Accuracy"]
+log = pd.DataFrame(columns=log_cols)
 
 
 
-predict_result.to_csv(r"C:\Data Science Projects\Load Prediction\predict_result4.csv", sep=',', header=True, decimal='.', index =False)
+predictor_col = [\
+ 'Loan_ID'\
+,'Credit_History'\
+,'Gender'\
+,'Ratio_Income_vs_LoanAmount'\
+,'TotalIncome_log'\
+,'LoanAmount_log'\
+,'Loan_Amount_Term'\
+,'Property_Area'\
+,'Married'\
+,'Education'\
+,'Dependents'\
+,'Self_Employed'\
+ ]
 
-#print(predict_Loan_Status)
+#,'Loan_Status'\
+
+df_train = pd.concat([df_train.loc[:, predictor_col], df_train.loc[:,'Loan_Status']], axis=1)
+df_test = df_test.loc[:, predictor_col]
+
+
+X_train = df_train.drop(["Loan_ID", "Loan_Status"], axis=1)
+Y_train = df_train["Loan_Status"]
+X_test  = df_test.drop("Loan_ID", axis=1).copy()
+print(X_train.shape, Y_train.shape, X_test.shape)
+
+#X = X.reset_index()
+#y = y.reset_index()
+#sys.exit()
+
+# Support Vector Machines
+svc = SVC()
+svc.fit(X_train, Y_train)
+Y_pred = svc.predict(X_test)
+acc_svc = round(svc.score(X_train, Y_train) * 100, 2)
+print('SVC:', acc_svc)
+
+#k-Nearest Neighbors algorithm
+knn = KNeighborsClassifier(n_neighbors = 3)
+knn.fit(X_train, Y_train)
+Y_pred = knn.predict(X_test)
+acc_knn = round(knn.score(X_train, Y_train) * 100, 2)
+
+print('KNeighborsClassifier:', acc_knn)
+
+
+##
+acc = LogisticRegression()
+acc.fit(X_train, Y_train)
+Y_pred = acc.predict(X_test)
+acc_log = round(acc.score(X_train, Y_train) * 100, 2)
+
+print('Logistic Regression:', acc_log)
+
+
+# Gaussian Naive Bayes
+
+gaussian = GaussianNB()
+gaussian.fit(X_train, Y_train)
+Y_pred = gaussian.predict(X_test)
+acc_gaussian = round(gaussian.score(X_train, Y_train) * 100, 2)
+
+print('GaussianNB:', acc_gaussian)
+
+# Perceptron
+
+perceptron = Perceptron()
+perceptron.fit(X_train, Y_train)
+Y_pred = perceptron.predict(X_test)
+acc_perceptron = round(perceptron.score(X_train, Y_train) * 100, 2)
+print('Perceptron:', acc_perceptron)
+
+
+# Linear SVC
+
+linear_svc = LinearSVC()
+linear_svc.fit(X_train, Y_train)
+Y_pred = linear_svc.predict(X_test)
+acc_linear_svc = round(linear_svc.score(X_train, Y_train) * 100, 2)
+print('Linear SVC:', acc_linear_svc)
+
+# Stochastic Gradient Descent
+
+sgd = SGDClassifier()
+sgd.fit(X_train, Y_train)
+Y_pred = sgd.predict(X_test)
+acc_sgd = round(sgd.score(X_train, Y_train) * 100, 2)
+acc_sgd
+print('Stochastic Gradient Descent:', acc_sgd)
+
+
+# Decision Tree
+
+decision_tree = DecisionTreeClassifier()
+decision_tree.fit(X_train, Y_train)
+Y_pred = decision_tree.predict(X_test)
+acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
+print('Decision Tree:', acc_decision_tree)
+
+random_forest = RandomForestClassifier(n_estimators=100)
+random_forest.fit(X_train, Y_train)
+Y_pred = random_forest.predict(X_test)
+acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 2)
+print('Random Forest:', acc_random_forest)
+
+models = pd.DataFrame({
+    'Model': ['Support Vector Machines', 'KNN', 'Logistic Regression', 
+              'Random Forest', 'Naive Bayes', 'Perceptron', 
+              'Stochastic Gradient Decent', 'Linear SVC', 
+              'Decision Tree'],
+    'Score': [acc_linear_svc, acc_knn, acc_log, 
+              acc_random_forest, acc_gaussian, acc_perceptron, 
+              acc_sgd, acc_linear_svc, acc_decision_tree]})
+
+#display model score     
+print(models.sort_values(by='Score', ascending=False))
+
+#sys.exit()
+
+# Random Forest
+def run_GridSearch_RandomForestRegressor():
+    param_grid = [
+        # try 12 (3×4) combinations of hyperparameters
+        {'n_estimators': [150, 180, 200], 'max_features': ["auto", "sqrt", "log2"], 'min_samples_leaf': [1,2], 'min_samples_split':[2]}
+        # then try 6 (2×3) combinations with bootstrap set as False
+        #,{'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},
+    ]
+    
+    forest_classifer = RandomForestClassifier(random_state=42)
+#    
+#   # train across 5 folds, that's a total of (12+6)*5=90 rounds of training 
+    model = GridSearchCV(forest_classifer, param_grid, cv=5,
+                               scoring='neg_mean_squared_error')
+    
+    model.fit(X_train, Y_train)
+    print(model.best_estimator_)
+    return model
+
+       
+
+# use random_forest as the model
+   
+#run_GridSearch_RandomForestRegressor()    
+
+model = RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',
+            max_depth=None, max_features='auto', max_leaf_nodes=None,
+            min_impurity_decrease=0.0, min_impurity_split=None,
+            min_samples_leaf=1, min_samples_split=2,
+            min_weight_fraction_leaf=0.0, n_estimators=180, n_jobs=1,
+            oob_score=False, random_state=42, verbose=0, warm_start=False).fit(X_train, Y_train)
+
+
+# model = RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=None,
+##           max_features="auto", max_leaf_nodes=None, min_impurity_split=1e-07,
+##           min_samples_leaf=1, min_samples_split=2,
+##           min_weight_fraction_leaf=0.0, n_estimators=200, n_jobs=1,
+##           oob_score=False, random_state=42, verbose=0, warm_start=False).fit(X_train, y_train)
+#
+Y_pred = random_forest.predict(X_test)
+random_forest.score(X_train, Y_train)
+acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 2)
+print('Random Forest:', acc_random_forest)
+
+
+submission = pd.DataFrame({
+        "Loan_ID": df_test["Loan_ID"],
+        "Loan_Status": Y_pred
+    })
+    
+submission['Loan_Status'].replace([0, 1], ['N','Y'], inplace=True)        
+print(submission.head(10))
+
+submission.to_csv('C:\Data Science Projects\Load Prediction\submission_v11.csv', index=False)
+
